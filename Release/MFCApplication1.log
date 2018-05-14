@@ -1,0 +1,10 @@
+﻿Build started 2018/5/14 8:48:12.
+     1>Project "H:\vs_project\MFCApplication1\MFCApplication1\MFCApplication1.vcxproj" on node 2 (ClCompile target(s)).
+     1>ClCompile:
+         D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /Zi /nologo /W3 /WX- /sdl- /O2 /Oi /Oy- /D WIN32 /D _WINDOWS /D NDEBUG /D ZLIB_WINAPI /D ASMV /D _CRT_NONSTDC_NO_DEPRECATE /D _CRT_SECURE_NO_DEPRECATE /D _CONSOLE /D ASMINF /D _UNICODE /D UNICODE /D _AFXDLL /Gm- /EHsc /MD /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Yu"stdafx.h" /Fp"Release\MFCApplication1.pch" /Fo"Release\\" /Fd"Release\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt MFCApplication1Dlg.cpp
+         MFCApplication1Dlg.cpp
+     1>Done Building Project "H:\vs_project\MFCApplication1\MFCApplication1\MFCApplication1.vcxproj" (ClCompile target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:00.68
