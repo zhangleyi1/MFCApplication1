@@ -22,7 +22,9 @@ public:
 // Implementation
 protected:
 	HICON m_hIcon;
-	CString  strPath;
+	CString  strPath;	// exe patch
+	CString mVersion;
+	CString mProjectMainPath;
 
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
@@ -36,4 +38,5 @@ public:
 	afx_msg void OnEnChangeEditProject();
 	void ReadConfig();
 	void WriteConfig();
+	void GetVersionInfo(CString projectMainPatch);
 };
