@@ -15,7 +15,7 @@ public:
     //path: utf8 path  
     ZipHelper& AddFile(const char* input_path,const char* inzip_path = "");
 	ZipHelper& AddDir(const char* input_dir,const char* temp_dir = NULL);
-
+	ZipHelper& ClearFile();
     //output_path :utf8 path  
     bool ToZip(const char* output_path);
   

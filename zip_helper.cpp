@@ -138,6 +138,13 @@ ZipHelper& ZipHelper::AddFile(const char* input_path,const char* inzip_path)
     return *this;
 }
 
+ZipHelper& ZipHelper::ClearFile()
+{
+	//files_[input_path] = inzip_path;
+	files_.clear();
+	return *this;
+}
+
 ZipHelper& ZipHelper::AddDir(const char* input_dir,const char* temp_dir){
 	WIN32_FIND_DATA findFileData;
 	auto input_dirw = QXUtf82Unicode(input_dir);

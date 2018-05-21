@@ -24,6 +24,8 @@ protected:
 	HICON m_hIcon;
 	CString  strPath;	// exe patch
 	CString mVersion;
+	CString mSimpleVersion;		//V1.5
+	CString mFingerprint;
 	CString mProjectMainPath;
 
 	// Generated message map functions
@@ -32,6 +34,7 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+
 public:
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedButtonStart();
@@ -39,4 +42,7 @@ public:
 	void ReadConfig();
 	void WriteConfig();
 	void GetVersionInfo(CString projectMainPatch);
+	CString findTargetFile(CString str, int dbType);
+	void copyDataBase(CString srcPatch, CString targetPatch);
+	void copyCMCBatToImgPath(CString srcPath, CString targetPath, CString fileName);
 };

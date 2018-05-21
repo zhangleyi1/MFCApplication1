@@ -315,8 +315,22 @@ void CMFCApplication1Dlg::GetVersionInfo(CString projectMainPatch) {
 			AfxMessageBox(str);
 			*/
 			mVersion = line.Mid(ret + strlen("custintid") + 1, line.GetLength() - ret - strlen("custintid") - 2);
-			//AfxMessageBox(mVersion); //debug
-			return;
+			int index__ = line.ReverseFind('_');
+			int index_V = line.ReverseFind('V');
+			mSimpleVersion = line.Mid(index_V, index__ - index_V);
+
+			//AfxMessageBox(mSimpleVersion); //debug
+			
+		}
+
+		if (ret = line.Find(_T("ro.build.fingerprint")) > 0 && line.Find(_T("#")) == -1) {
+
+            int index1 = line.Find(_T("="));
+            int index2 = line.ReverseFind('\"');
+            mFingerprint = line.Mid(index1 + 1, index2 - index1 - 1);
+			mFingerprint.Replace(_T("\/"), _T("~"));
+            mFingerprint.Replace(_T(":"), _T("~"));
+			//AfxMessageBox(mFingerprint);
 		}
 	}
 }
@@ -330,6 +344,92 @@ char *CStringToChar(CString & str) {
     memset(pChar, 0, nLen * 2 + 1);  
     int rtnVal = (int)wcstombs(pChar, pWChar, nLen * 2 + 1);
     return pChar;
+}
+
+CString CMFCApplication1Dlg::findTargetFile(CString str, int dbType) {
+	CString dbStr;
+	CFileFind dd;
+
+	BOOL nResult = dd.FindFile(str);
+	while (nResult) {
+		nResult = dd.FindNextFileW();
+
+		if (!dd.IsDirectory() && !dd.IsDots())	//递归遍历
+		{
+			dbStr = dd.GetFileName();
+			//AfxMessageBox(dbStr);
+			switch (dbType) {
+				case 1:
+					if (dbStr.Find(_T("APDB_"), 0) != -1 && (dbStr.Find(_T("ENUM"), 0) == -1 && dbStr.Find(_T("_"), 0) > 1)) {
+						dd.Close();
+						return dbStr;
+					}
+					dbStr = "";
+					break;
+				case 2:
+					if (dbStr.Find(_T("MDDB_Info"), 0) != -1) {
+						dd.Close();
+						return dbStr;
+					}
+					dbStr = "";
+					break;
+			}
+		}
+	}
+	dd.Close();
+
+	return dbStr;
+}
+
+void CMFCApplication1Dlg::copyDataBase(CString srcPatch, CString targetPatch) {
+	CFileFind cf;
+	CString fileName;
+
+	BOOL ret = cf.FindFile(srcPatch + _T("\\*.*"));
+	while (ret) {
+		ret = cf.FindNextFileW();
+
+		if (!cf.IsDirectory() && !cf.IsDots()) {
+			fileName = cf.GetFileName();
+			//AfxMessageBox(fileName);
+			CopyFile(srcPatch + _T("\\") + fileName, targetPatch + _T("\\") + fileName, true);
+		}
+	}
+}
+
+void CMFCApplication1Dlg::copyCMCBatToImgPath(CString srcPath, CString targetPath, CString fileName) {
+	CStdioFile read, write;
+	//AfxMessageBox(srcPath + _T("\\") + fileName);
+	if (!read.Open(srcPath + _T("\\") + fileName, CFile::modeRead)) {
+		AfxMessageBox(_T("open tmc.bat file error."));
+		return;
+	}
+
+	if (!write.Open(targetPath + _T("\\") + fileName, CFile::modeCreate | CFile::modeNoTruncate | CFile::modeReadWrite))
+	{
+		AfxMessageBox(_T("create tmc.bat file error."));
+		return;
+	}
+
+	CString line;
+	int ret = 0;;
+	while (read.ReadString(line)) {
+		if (ret = line.Find(_T("set c345=")) != -1) {
+			CString tempStr = line.Mid(ret + 8, 3);
+
+			line.SetAt(ret + 9, mSimpleVersion.GetAt(1));
+			line.SetAt(ret + 10, mSimpleVersion.GetAt(3));
+			//AfxMessageBox(tempStr);
+			//AfxMessageBox(line);
+			
+		}
+		write.WriteString(line);
+		write.WriteString(_T("\n"));
+	}
+
+	read.Close();
+	write.Close();
+	
 }
 
 void CMFCApplication1Dlg::OnBnClickedButtonStart()
@@ -369,9 +469,16 @@ void CMFCApplication1Dlg::OnBnClickedButtonStart()
 		AfxMessageBox(_T("CheckSum目录不存在，请重新输入！"));
 		return;
 	}
+
+
+	if (!IsFileExist(TMCStr)) {
+		AfxMessageBox(_T("TMC文件不存在，请重新输入！"));
+		return;
+	}
 	
 	
 	GetVersionInfo(projectStr);
+
 
 	CString nativeImgPatch = nativeStr + _T("\\") + mVersion;
 	if (!PathIsDirectory(nativeImgPatch)) {
@@ -386,59 +493,23 @@ void CMFCApplication1Dlg::OnBnClickedButtonStart()
 	//AfxMessageBox(nativeImgPatch);
 
 	//Added the Database files
-	CFileFind ff, dd;
-	CString fileStrENUM;
-	int nResult = ff.FindFile(projectStr + _T("\\obj\\CGEN\\*.*"));
-	
-	while (nResult) {
-		nResult = ff.FindNextFileW();
-		
-		if (!ff.IsDirectory() && !ff.IsDots())//递归遍历  
-		{
-			fileStrENUM = ff.GetFileName();
-			//AfxMessageBox(fileStrENUM);
-
-			if (fileStrENUM.Mid(1).Find(_T("APDB_")) && (fileStrENUM.Find(_T("ENUM")) == -1)) {
-				break;
-			}
-			
-		}
+	CString dbStr = NULL;
+	dbStr = findTargetFile(projectStr + _T("\\obj\\CGEN\\*.*"), 1);
+	if (!dbStr.IsEmpty()) {
+		CopyFile(projectStr + _T("\\obj\\CGEN\\") + dbStr, nativeImgPatch + _T("\\Database\\") + dbStr, true);
 	}
-	ff.Close();
 
-	
-	/*
-	CopyFile(projectStr + _T("\\obj\\CGEN\\") + fileStrENUM, nativeImgPatch + _T("\\Database\\") + fileStrENUM, true);
-
-	CString dbStr;
-	nResult = dd.FindFile(mProjectMainPath + _T("vendor\\mediatek\\proprietary\\modem\\aus6739_66_n1_lwctg\\*.*"));
-	while (nResult) {
-		nResult = dd.FindNextFileW();
-
-		if (!dd.IsDirectory() && !dd.IsDots())//递归遍历  
-		{
-			dbStr = dd.GetFileName();
-			AfxMessageBox(dbStr);
-
-			if (dbStr.Find(_T("fsdgvs"))) {
-				break;
-			}
-			else {
-				AfxMessageBox(_T("error"));
-			}
-
-		}
+	dbStr = findTargetFile(mProjectMainPath + _T("vendor\\mediatek\\proprietary\\modem\\aus6739_66_n1_lwctg\\*.*"), 2);
+	if (!dbStr.IsEmpty()) {
+		CopyFile(mProjectMainPath + _T("vendor\\mediatek\\proprietary\\modem\\aus6739_66_n1_lwctg\\") + dbStr, nativeImgPatch + _T("\\Database\\") + dbStr, true);
 	}
-	dd.Close();
-	*/
-	//CopyFile(mProjectMainPath + _T("vendor\\mediatek\\proprietary\\modem\\aus6739_66_n1_lwctg\\") + dbStr, nativeImgPatch + _T("\\Database\\") + dbStr, true);
-	//exit(1);
+	
 	CopyFile(projectStr + _T("\\boot-verified.img"), nativeImgPatch + _T("\\boot-verified.img"), true);
 	CopyFile(projectStr + _T("\\cache.img"), nativeImgPatch + _T("\\cache.img"), true);
 	CopyFile(projectStr + _T("\\efuse.img"), nativeImgPatch + _T("\\efuse.img"), true);
-	CopyFile(projectStr + _T("\\lk-verified.img"), nativeImgPatch + _T("\\lk-verified.img"), true);
+	CopyFile(projectStr + _T("\\lk-verified.bin") , nativeImgPatch + _T("\\lk-verified.bin"), true);
 	CopyFile(projectStr + _T("\\loader_ext-verified.img"), nativeImgPatch + _T("\\loader_ext-verified.img"), true);
-	CopyFile(projectStr + _T("\\logo-verified.img"), nativeImgPatch + _T("\\logo-verified.img"), true);
+	CopyFile(projectStr + _T("\\logo-verified.bin"), nativeImgPatch + _T("\\logo-verified.bin"), true);
 	CopyFile(projectStr + _T("\\mcupmfw-verified.img"), nativeImgPatch + _T("\\mcupmfw-verified.img"), true);
 	CopyFile(projectStr + _T("\\md1arm7-verified.img"), nativeImgPatch + _T("\\md1arm7-verified.img"), true);
 	CopyFile(projectStr + _T("\\md1dsp-verified.img"), nativeImgPatch + _T("\\md1dsp-verified.img"), true);
@@ -448,9 +519,9 @@ void CMFCApplication1Dlg::OnBnClickedButtonStart()
 	CopyFile(projectStr + _T("\\preloader_aus6739_66_n1.bin"), nativeImgPatch + _T("\\preloader_aus6739_66_n1.bin"), true);
 	CopyFile(projectStr + _T("\\recovery-verified.img"), nativeImgPatch + _T("\\recovery-verified.img"), true);
 	CopyFile(projectStr + _T("\\secro.img"), nativeImgPatch + _T("\\secro.img"), true);
-	CopyFile(projectStr + _T("\\spmfw-verified.img"), nativeImgPatch + _T("\\spmfw-verified.img"), true);
-	//CopyFile(projectStr + _T("\\system.img"), nativeStr + _T("\\system.img"), true);
-	CopyFile(projectStr + _T("\\trustzone-verified.img"), nativeImgPatch + _T("\\trustzone-verified.img"), true);
+	CopyFile(projectStr + _T("\\spmfw-verified.bin"), nativeImgPatch + _T("\\spmfw-verified.bin"), true);
+	//CopyFile(projectStr + _T("\\system.img"), nativeImgPatch + _T("\\system.img"), true);
+	CopyFile(projectStr + _T("\\trustzone-verified.bin"), nativeImgPatch + _T("\\trustzone-verified.bin"), true);
 	CopyFile(projectStr + _T("\\userdata.img"), nativeImgPatch + _T("\\userdata.img"), true);
 
 	CopyFile(checkSumStr + _T("\\CheckSum_Gen.exe"), nativeImgPatch + _T("\\CheckSum_Gen.exe"), true);
@@ -460,33 +531,11 @@ void CMFCApplication1Dlg::OnBnClickedButtonStart()
 	CopyFile(checkSumStr + _T("\\FlashToolLib.v1.dll"), nativeImgPatch + _T("\\FlashToolLib.v1.dll"), true);
 	CopyFile(checkSumStr + _T("\\FlashToolLibEx.dll"), nativeImgPatch + _T("\\FlashToolLibEx.dll"), true);
 
-	CString dbStr;
-	nResult = dd.FindFile(mProjectMainPath + _T("vendor\\mediatek\\proprietary\\modem\\aus6739_66_n1_lwctg\\*.*"));
-	while (nResult) {
-		nResult = dd.FindNextFileW();
-
-		if (!dd.IsDirectory() && !dd.IsDots())//递归遍历  
-		{
-			dbStr = dd.GetFileName();
-			AfxMessageBox(dbStr);
-
-			if (dbStr.Find(_T("fsdgvs"))) {
-				break;
-			}
-			else {
-				AfxMessageBox(_T("error"));
-			}
-
-		}
-	}
-	dd.Close();
-	CopyFile(mProjectMainPath + _T("vendor\\mediatek\\proprietary\\modem\\aus6739_66_n1_lwctg\\") + dbStr, nativeImgPatch + _T("\\Database\\") + dbStr, true);
-	exit(1);
 	HINSTANCE hinstance = ShellExecute(NULL, _T("open"), nativeImgPatch + _T("\\CheckSum_Gen.exe"), NULL, nativeImgPatch, SW_SHOWNORMAL);
     //WaitForSingleObject(ShExecInfo.hProcess, INFINITE);
 	
     //AfxMessageBox(_T("Sleep 10 before"));
-    Sleep(10000);
+    Sleep(60000);
 
 	HWND hWnd = ::FindWindow(NULL, nativeImgPatch + _T("\\CheckSum_Gen.exe"));
     if (hWnd != NULL) {
@@ -498,7 +547,7 @@ void CMFCApplication1Dlg::OnBnClickedButtonStart()
         
         //CString str, strTemp = _T("H:\\vs_project\\check_sum\\CheckSum_Generate_exe\\CheckSum_Gen.exe");
        // str.Format(_T("%s"), strTemp);
-        
+		
 		BOOL ret = DeleteFile(nativeImgPatch + _T("\\CheckSum_Gen.exe"));
 		DeleteFile(nativeImgPatch + _T("\\CheckSum_Gen.ilk"));
 		DeleteFile(nativeImgPatch + _T("\\CheckSum_Gen.pdb"));
@@ -512,31 +561,57 @@ void CMFCApplication1Dlg::OnBnClickedButtonStart()
 		Sleep(10000);
 		//AfxMessageBox(nativeStr);
         ZipHelper zh;
-        /*
-        int n = nativeStr.GetLength();
-        int len = WideCharToMultiByte(CP_ACP, 0, nativeStr, n, NULL, 0, NULL, NULL);
-        char *pFilePath = new char[len+1];
-        WideCharToMultiByte(CP_ACP, 0, nativeStr, n, pFilePath, len, NULL, NULL);
-        pFilePath[len+1] = '\0';
-*/
 
-/*
-        wchar_t *pWChar = nativeStr.GetBuffer(); //获取nativeStr的宽字符用数组保存  
-        nativeStr.ReleaseBuffer();  
-      
-        int nLen = nativeStr.GetLength(); //获取nativeStr的字符数  
-        char *pChar = new char[nLen * 2 + 1];   
-        memset(pChar, 0, nLen * 2 + 1);  
-        int rtnVal = (int)wcstombs(pChar, pWChar, nLen * 2 + 1);
-*/
-
-		zh.AddDir(CStringToChar(nativeStr));
-
+		zh.AddDir(CStringToChar(nativeStr + _T("\\") + mVersion));
 		zh.ToZip(CStringToChar(nativeStr + _T("\\") + mVersion + _T(".zip")));
+
+		zh.ClearFile();
+
+		int position = TMCStr.ReverseFind(('\\'));
+		CString tmcFileName = TMCStr.Right(TMCStr.GetLength() - position);
+		//AfxMessageBox(tmcFileName);
+
+		CString mOtherFilePath = TMCStr.Left(position);
+		//AfxMessageBox(mOtherFilePath);
+		//exit(1);
+		zh.AddFile(CStringToChar(mOtherFilePath + _T("\\flash_tool.exe")));
+		zh.AddFile(CStringToChar(nativeStr + _T("\\") + mVersion + _T("\\") + _T("boot-verified.img")));
+		zh.AddFile(CStringToChar(nativeStr + _T("\\") + mVersion + _T("\\") + _T("recovery-verified.img")));
+		zh.AddFile(CStringToChar(nativeStr + _T("\\") + mVersion + _T("\\") + _T("system.img")));
+		zh.AddFile(CStringToChar(nativeStr + _T("\\") + mVersion + _T("\\") + _T("userdata.img")));
+		zh.ToZip(CStringToChar(nativeStr + _T("\\") + mFingerprint + _T(".zip")));
+
+		zh.ClearFile();
+		
+		copyDataBase(nativeStr + _T("\\") + mVersion + _T("\\DataBase"), nativeStr + _T("\\") + mVersion);
+		DeleteDirectory(nativeStr + _T("\\") + mVersion + _T("\\DataBase"));
+
+		//CopyFile(_T("E:\\version\\TMC版本命名5058I_EFUSE.bat"), nativeImgPatch + _T("\\TMC版本命名5058I_EFUSE.bat"), true);
+		
+		copyCMCBatToImgPath(mOtherFilePath, nativeImgPatch, tmcFileName);
+		
+		HINSTANCE hinstance = ShellExecute(NULL, _T("open"), nativeImgPatch + _T("\\") + tmcFileName, NULL, nativeImgPatch, SW_SHOWNORMAL);
+		Sleep(5000);
+
+		HWND hWnd = ::FindWindow(NULL, nativeImgPatch + _T("\\") + tmcFileName);
+		DeleteFile(nativeImgPatch + _T("\\") + tmcFileName);
+
+		zh.ClearFile();
+		zh.AddDir(CStringToChar(nativeImgPatch));
+		zh.ToZip(CStringToChar(nativeStr + _T("\\") + mVersion + _T("_TMC.zip")));
+
+		CString fileVersion = mVersion + _T(".zip");
+		CString tmcFileVersion = mVersion + _T("_TMC.zip");
+		CString tclFileVersion = mFingerprint + _T(".zip");
+
+		CopyFile(nativeStr + _T("\\") + fileVersion, serviceStr + _T("\\") + fileVersion, true);
+		CopyFile(nativeStr + _T("\\") + tmcFileVersion, serviceStr + _T("\\") + tmcFileVersion, true);
+		CopyFile(nativeStr + _T("\\") + tclFileVersion, serviceStr + _T("\\") + tclFileVersion, true);
     }
     else {
         AfxMessageBox(_T("CheckSum is not Running！"));
     }
+	
 	
 	WriteConfig();
 }
